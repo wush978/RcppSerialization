@@ -14,7 +14,7 @@
 namespace RcppSerialization {
 
 template<typename T>
-std::string serialize(T* m, bool is_binary, bool is_gzip) {
+std::string serialize(const T& m, bool is_binary, bool is_gzip) {
   std::stringstream os;
   {
     boost::iostreams::filtering_stream<boost::iostreams::output> f;
@@ -22,17 +22,17 @@ std::string serialize(T* m, bool is_binary, bool is_gzip) {
     f.push(os);
     if (is_binary) {
       boost::archive::binary_oarchive oa(f);
-      oa << *m;
+      oa << m;
     } else {
       boost::archive::text_oarchive oa(f);
-      oa << *m;
+      oa << m;
     }
   }
   return os.str();
 }
 
 template<typename T>
-SEXP rcpp_serialize(T* m, bool is_binary, bool is_gzip) {
+SEXP rcpp_serialize(const T& m, bool is_binary, bool is_gzip) {
   const std::string src(serialize<T>(m, is_binary, is_gzip));
   Rcpp::RawVector retval(src.size());
   memcpy(&retval[0], src.c_str(), src.size());
@@ -40,7 +40,7 @@ SEXP rcpp_serialize(T* m, bool is_binary, bool is_gzip) {
 }
 
 template<typename T>
-void rcpp_deserialize(T* m, Rcpp::RawVector src, bool is_binary, bool is_gzip) {
+void rcpp_deserialize(T& m, Rcpp::RawVector src, bool is_binary, bool is_gzip) {
   typedef boost::iostreams::basic_array_source<char> Device;
   boost::iostreams::stream<Device> stream((char *) &src[0], src.size());
   boost::iostreams::filtering_stream<boost::iostreams::input> f;
@@ -48,17 +48,11 @@ void rcpp_deserialize(T* m, Rcpp::RawVector src, bool is_binary, bool is_gzip) {
   f.push(stream);
   if (is_binary) {
     boost::archive::binary_iarchive ia(f);
-    ia >> *m;
+    ia >> m;
   } else {
     boost::archive::text_iarchive ia(f);
-    ia >> *m;
+    ia >> m;
   }  
-}
-
-template<typename T>
-uint32_t signature(T* m) {
-  std::string raw(serialize<T>(m, false, true));
-  return ::SuperFastHash(raw.c_str(), raw.size(), 0);
 }
 
 }
